@@ -1,0 +1,5 @@
+# Faster linking (requires clang + lld installed)
+# Uncomment if available in your build environment:
+# [target.x86_64-unknown-linux-gnu]
+# linker = "clang"
+# rustflags = ["-C", "link-arg=-fuse-ld=lld"]

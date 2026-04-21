@@ -1,0 +1,21 @@
+pub mod auto_investigation;
+pub mod deep_research;
+pub mod deployer;
+pub mod health;
+pub mod intelligence;
+pub mod investigation;
+pub mod investigation_fixtures;
+pub mod investigation_missions;
+pub mod investigation_ops;
+pub mod investigation_runs;
+pub mod investigation_watchlist;
+pub mod ml;
+pub mod narratives;
+pub mod payments;
+pub mod phase4;
+pub mod router;
+pub mod tokens;
+pub mod verdict;
+pub mod wallets;
+
+pub use router::create_router;

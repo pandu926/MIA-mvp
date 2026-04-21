@@ -1,0 +1,50 @@
+# Environment
+.env
+!.env.example
+.agent-wallet-testnet/
+.agent-wallet-base/
+.agents/
+.claude/
+
+# Rust
+backend/target/
+**/*.rs.bk
+
+# Node.js / Next.js
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel
+frontend/test-results/
+frontend/playwright-report/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker overrides (dev-only)
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# Editor
+.claude/settings.local.json
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts / local-only data
+dist/
+build/
+backend/ml_models/
+backups/
+ml/.venv/
+ml/__pycache__/
+**/__pycache__/
+ml/data/
+ml/exports/
