@@ -18,6 +18,7 @@ const baseToken: TokenSummary = {
   risk_category: 'medium',
   ai_scored: true,
   deep_researched: false,
+  watching_for: 'Watching for deeper confirmation.',
 };
 
 describe('TokenCard', () => {

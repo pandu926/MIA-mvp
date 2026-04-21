@@ -20,6 +20,7 @@ pub struct InvestigationResponse {
     pub generated_at: DateTime<Utc>,
     pub active_run: Option<InvestigationRunSummary>,
     pub deep_research: InvestigationDeepResearchState,
+    pub tripwires: InvestigationTripwires,
     pub internal: PublicInternalEvidence,
     pub contract_intelligence: ContractIntelligence,
     pub market_intelligence: MarketIntelligence,
@@ -154,6 +155,16 @@ pub struct AgentScorecard {
     pub primary_reason: String,
     pub primary_risk: String,
     pub supporting_points: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InvestigationTripwires {
+    pub headline: String,
+    pub watching_for: String,
+    pub upgrade_trigger: String,
+    pub risk_trigger: String,
+    pub deep_research_trigger: String,
+    pub invalidation_trigger: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -40,6 +40,7 @@ export const useTokenFeedStore = create<TokenFeedState>((set) => ({
         risk_category: update.risk_category,
         ai_scored: false,
         deep_researched: false,
+        watching_for: 'Watching for enough activity to unlock a live AI score.',
       };
       const next = new Map(state.tokens);
       next.set(update.token_address, token);

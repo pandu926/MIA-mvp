@@ -24,14 +24,16 @@ pub use types::{
     AgentScorecard, AlphaContextSnapshot, AskMiaAnswer, AskMiaRequest, AskMiaResponse,
     AskMiaRunContext, AskMiaRunContextEvent, ContractIntelligence, DeployerSnapshot,
     DeployerTokenSnapshot, HolderSnapshot, InternalEvidence, InvestigationDeepResearchState,
-    InvestigationResponse, InvestigationSource, MarketIntelligence, PublicInternalEvidence,
-    RiskSnapshot, TokenSnapshot, TransactionSnapshot, WhaleActivitySnapshot,
+    InvestigationResponse, InvestigationSource, InvestigationTripwires, MarketIntelligence,
+    PublicInternalEvidence, RiskSnapshot, TokenSnapshot, TransactionSnapshot,
+    WhaleActivitySnapshot,
 };
 
 pub(crate) use llm::{
     build_agent_scorecard, build_ask_mia_fallback, build_ask_mia_grounded_layers,
-    build_ask_mia_trace, build_unscored_analysis, clean_sentence, normalize_ask_mia_evidence,
-    parse_json_payload, run_ask_mia_v1, synthesize_analysis, validate_ask_mia_question,
+    build_ask_mia_trace, build_investigation_tripwires, build_unscored_analysis,
+    clean_sentence, normalize_ask_mia_evidence, parse_json_payload, run_ask_mia_v1,
+    synthesize_analysis, validate_ask_mia_question,
 };
 pub(crate) use sources::{fetch_token_snapshot, load_investigation_bundle};
 
@@ -53,6 +55,16 @@ pub async fn get_token_investigation(
     let deep_research_context = cached_deep_research
         .as_ref()
         .map(build_deep_research_prompt_context);
+    let deep_research = InvestigationDeepResearchState {
+        report_cached: cached_deep_research.is_some(),
+        report_generated_at: cached_deep_research.as_ref().map(|report| report.updated_at),
+        auto_threshold_met: total_tx >= state.config.auto_deep_research_tx_threshold,
+        auto_threshold_tx_count: state.config.auto_deep_research_tx_threshold,
+        auto_requested,
+        ai_score_enabled,
+        ai_score_gate_tx_count: state.config.ai_score_min_tx_count,
+        score_enriched: cached_deep_research.is_some(),
+    };
     let analysis = if ai_score_enabled {
         let analysis = synthesize_analysis(
             state.config.clone(),
@@ -76,23 +88,15 @@ pub async fn get_token_investigation(
             )),
         )
     };
+    let tripwires =
+        build_investigation_tripwires(&internal, &contract_intelligence, &analysis, &deep_research);
 
     let mut response = InvestigationResponse {
         token_address: address,
         generated_at: Utc::now(),
         active_run: None,
-        deep_research: InvestigationDeepResearchState {
-            report_cached: cached_deep_research.is_some(),
-            report_generated_at: cached_deep_research
-                .as_ref()
-                .map(|report| report.updated_at),
-            auto_threshold_met: total_tx >= state.config.auto_deep_research_tx_threshold,
-            auto_threshold_tx_count: state.config.auto_deep_research_tx_threshold,
-            auto_requested,
-            ai_score_enabled,
-            ai_score_gate_tx_count: state.config.ai_score_min_tx_count,
-            score_enriched: cached_deep_research.is_some(),
-        },
+        deep_research,
+        tripwires,
         internal: PublicInternalEvidence::from(internal),
         contract_intelligence,
         market_intelligence,

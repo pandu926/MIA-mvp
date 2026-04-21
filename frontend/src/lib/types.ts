@@ -15,6 +15,7 @@ export interface TokenSummary {
   risk_category: 'low' | 'medium' | 'high' | null;
   ai_scored: boolean;
   deep_researched: boolean;
+  watching_for: string;
   window_hours?: number | null;
   window_volume_bnb?: number | null;
   window_buy_count?: number | null;
@@ -562,6 +563,15 @@ export interface InvestigationDeepResearchStateResponse {
   score_enriched: boolean;
 }
 
+export interface InvestigationTripwiresResponse {
+  headline: string;
+  watching_for: string;
+  upgrade_trigger: string;
+  risk_trigger: string;
+  deep_research_trigger: string;
+  invalidation_trigger: string;
+}
+
 export interface InvestigationInternalResponse {
   token: InvestigationTokenResponse;
   risk: InvestigationRiskResponse | null;
@@ -581,6 +591,7 @@ export interface InvestigationResponse {
   generated_at: string;
   active_run: InvestigationRunSummary | null;
   deep_research: InvestigationDeepResearchStateResponse;
+  tripwires: InvestigationTripwiresResponse;
   internal: InvestigationInternalResponse;
   contract_intelligence: ContractIntelligenceResponse;
   market_intelligence: MarketIntelligenceResponse;

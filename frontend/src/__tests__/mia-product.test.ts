@@ -24,6 +24,14 @@ function makeInvestigation(overrides: Partial<InvestigationResponse> = {}): Inve
       ai_score_gate_tx_count: 50,
       score_enriched: false,
     },
+    tripwires: {
+      headline: 'What would make MIA change its mind?',
+      watching_for: 'MIA is watching whether participation broadens without concentration getting worse.',
+      upgrade_trigger: 'Upgrade if participant wallets keep expanding and flow remains healthy.',
+      risk_trigger: 'Raise risk if concentration rises or operator-pattern pressure worsens.',
+      deep_research_trigger: 'Deep research auto-starts at 500 total transactions.',
+      invalidation_trigger: 'Invalidate the current read if buy pressure fades and breadth stalls.',
+    },
     internal: {
       token: {
         contract_address: '0x1234567890abcdef1234567890abcdef12345678',

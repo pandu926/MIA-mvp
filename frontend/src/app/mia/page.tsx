@@ -474,6 +474,90 @@ function InvestigationScorePanel({ report }: { report: InvestigationResponse }) 
   );
 }
 
+function TripwireRow({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <div
+      className="rounded-2xl border p-4"
+      style={{ background: 'rgba(255,255,255,0.03)', borderColor: 'rgba(255,255,255,0.08)' }}
+    >
+      <div
+        className="text-[10px] font-extrabold uppercase tracking-[0.12em]"
+        style={{ color, fontFamily: 'Manrope, sans-serif' }}
+      >
+        {label}
+      </div>
+      <p
+        className="mt-2 text-sm leading-7"
+        style={{ color: '#adb6d0', fontFamily: 'Space Grotesk, sans-serif' }}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function TripwirePanel({ report }: { report: InvestigationResponse }) {
+  return (
+    <section
+      className="rounded-[24px] border p-5"
+      style={{ background: 'rgba(23,31,49,0.9)', borderColor: 'rgba(255,255,255,0.06)' }}
+    >
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: '#94a0c2',
+          letterSpacing: '0.16em',
+          textTransform: 'uppercase',
+          fontFamily: 'Manrope, sans-serif',
+          marginBottom: 14,
+        }}
+      >
+        MIA Tripwires
+      </div>
+      <div
+        className="rounded-2xl border p-4"
+        style={{ background: 'rgba(111,141,255,0.08)', borderColor: 'rgba(111,141,255,0.18)' }}
+      >
+        <div
+          className="text-[10px] font-extrabold uppercase tracking-[0.12em]"
+          style={{ color: '#6f8dff', fontFamily: 'Manrope, sans-serif' }}
+        >
+          {report.tripwires.headline}
+        </div>
+        <p
+          className="mt-2 text-sm leading-7"
+          style={{ color: '#edf1ff', fontFamily: 'Space Grotesk, sans-serif' }}
+        >
+          {report.tripwires.watching_for}
+        </p>
+      </div>
+      <div className="mt-3 grid gap-3 md:grid-cols-2">
+        <TripwireRow label="Upgrade Trigger" value={report.tripwires.upgrade_trigger} color="#36efb6" />
+        <TripwireRow label="Risk Trigger" value={report.tripwires.risk_trigger} color="#ff8080" />
+        <TripwireRow
+          label="Deep Research Trigger"
+          value={report.tripwires.deep_research_trigger}
+          color="#ffd166"
+        />
+        <TripwireRow
+          label="Invalidation Trigger"
+          value={report.tripwires.invalidation_trigger}
+          color="#94a0c2"
+        />
+      </div>
+    </section>
+  );
+}
+
 function buildMlSummary(report: InvestigationResponse, proofHeadline: string) {
   if (report.internal.alpha_context) {
     return `MIA's proof support layer currently carries a live rank snapshot at #${report.internal.alpha_context.rank} with support score ${report.internal.alpha_context.alpha_score.toFixed(1)}. ${proofHeadline}`;
@@ -769,6 +853,7 @@ function MiaInvestigationClient() {
           risk_category: (investigation.internal.risk?.risk_category as 'low' | 'medium' | 'high' | null) ?? null,
           ai_scored: investigation.deep_research.ai_score_enabled,
           deep_researched: investigation.deep_research.report_cached,
+          watching_for: investigation.tripwires.watching_for,
         };
 
         setResolvedToken(resolved ?? tokenFromReport);
@@ -1302,6 +1387,10 @@ function MiaInvestigationClient() {
 
               <div style={{ marginBottom: 14 }}>
                 <InvestigationScorePanel report={report} />
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <TripwirePanel report={report} />
               </div>
 
               <section
@@ -2342,6 +2431,10 @@ function MiaInvestigationClient() {
 
                   <div style={{ marginBottom: 18 }}>
                     <InvestigationScorePanel report={report} />
+                  </div>
+
+                  <div style={{ marginBottom: 18 }}>
+                    <TripwirePanel report={report} />
                   </div>
 
                   <div className="grid gap-5 xl:grid-cols-[minmax(0,1.05fr)_320px]">

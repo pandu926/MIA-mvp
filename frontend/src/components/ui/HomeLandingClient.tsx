@@ -366,6 +366,9 @@ function FeedRow({
         <div style={{ fontSize: 11, color: SHELL.body, fontFamily: "'Space Grotesk', sans-serif" }}>
           {metric.volumeValue} · {metric.flowValue} · TX {formatNumber(token.total_tx, 0)} · {metric.hint}
         </div>
+        <div style={{ marginTop: 4, fontSize: 10, color: SHELL.blue, fontFamily: "'Space Grotesk', sans-serif", lineHeight: 1.45 }}>
+          Watching for: {token.watching_for}
+        </div>
         <div style={{ marginTop: 2, fontSize: 11, color: SHELL.muted, fontFamily: "'Roboto Mono', monospace" }}>
           {shortAddress(token.contract_address)}
         </div>

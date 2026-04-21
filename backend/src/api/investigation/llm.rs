@@ -13,7 +13,7 @@ use crate::{
 use super::types::{
     AgentScorecard, AnalysisPayload, AskMiaAnswer, AskMiaPayload, AskMiaRunContext,
     AskMiaTraceStep, ContractIntelligence, InternalEvidence, InvestigationAnalysis,
-    MarketIntelligence,
+    InvestigationDeepResearchState, InvestigationTripwires, MarketIntelligence,
 };
 
 const ANALYSIS_MAX_TOKENS: u32 = 700;
@@ -256,6 +256,151 @@ fn build_operator_pattern_facts(internal: &InternalEvidence) -> Value {
         "repeated_wallets": internal.operator_family.repeated_wallets,
         "migrated_wallets": internal.operator_family.migrated_wallets,
     })
+}
+
+fn buy_share_pct(internal: &InternalEvidence) -> f64 {
+    let total_tx = internal.token.buy_count + internal.token.sell_count;
+    if total_tx <= 0 {
+        return 50.0;
+    }
+
+    (internal.token.buy_count as f64 / total_tx as f64) * 100.0
+}
+
+fn next_participant_target(participants: i32) -> i32 {
+    match participants {
+        i32::MIN..=24 => 40,
+        25..=59 => 80,
+        60..=119 => 140,
+        _ => participants + (participants / 4).max(25),
+    }
+}
+
+fn top_holder_concentration_pct(contract_intelligence: &ContractIntelligence) -> Option<f64> {
+    contract_intelligence
+        .holder_supply
+        .as_ref()
+        .and_then(|supply| supply.top10.supply_pct)
+}
+
+pub(crate) fn build_investigation_tripwires(
+    internal: &InternalEvidence,
+    contract_intelligence: &ContractIntelligence,
+    analysis: &InvestigationAnalysis,
+    deep_research: &InvestigationDeepResearchState,
+) -> InvestigationTripwires {
+    let total_tx = internal.token.buy_count + internal.token.sell_count;
+    let active_wallet_count =
+        i32::try_from(internal.wallet_structure.active_wallet_count).unwrap_or(i32::MAX);
+    let participant_wallets = internal
+        .token
+        .participant_wallet_count
+        .max(active_wallet_count);
+    let next_wallet_target = next_participant_target(participant_wallets);
+    let buy_share = buy_share_pct(internal);
+    let owner_holding_pct = contract_intelligence.owner_holding_pct;
+    let top10_concentration = top_holder_concentration_pct(contract_intelligence);
+    let operator_confidence = internal.operator_family.confidence.to_ascii_lowercase();
+    let has_operator_pattern = matches!(operator_confidence.as_str(), "medium" | "high");
+    let critical_whales = internal.whale_activity_24h.critical_alerts;
+
+    let watching_for = if analysis.score.is_none() {
+        format!(
+            "MIA is waiting for this launch to clear more than {} total transactions or attach a deep research report before it opens a live AI score. Until then, the key question is whether wallet breadth becomes real instead of thin recycled flow.",
+            deep_research.ai_score_gate_tx_count
+        )
+    } else if deep_research.report_cached {
+        "MIA is watching whether live holder, builder, and flow behavior still supports the deep research thesis. If the structure changes materially, the score should move with it.".to_string()
+    } else if deep_research.auto_requested {
+        "MIA is watching for the queued deep research report to land while checking whether holder breadth and live flow still support the current read.".to_string()
+    } else {
+        "MIA is watching whether participation keeps broadening without concentration, whale exit pressure, or operator-pattern risk getting worse.".to_string()
+    };
+
+    let upgrade_trigger = if analysis.score.is_none() {
+        format!(
+            "Upgrade from no-score mode only after activity moves above {} total transactions or a deep research report is attached.",
+            deep_research.ai_score_gate_tx_count
+        )
+    } else if let Some(top10_pct) = top10_concentration.filter(|pct| *pct >= 70.0) {
+        format!(
+            "Upgrade only if top-holder concentration cools from the current {:.1}% band and participant wallets expand toward at least {}.",
+            top10_pct, next_wallet_target
+        )
+    } else if has_operator_pattern {
+        format!(
+            "Upgrade only if wallet breadth keeps expanding toward {} while operator-pattern pressure stops intensifying across related launches.",
+            next_wallet_target
+        )
+    } else if critical_whales > 0 {
+        "Upgrade only if whale-sized flow gets absorbed cleanly and buy pressure stays in control after the spike.".to_string()
+    } else {
+        format!(
+            "Upgrade if participant wallets broaden toward {} and buy-side flow stays ahead of sells without a new concentration spike.",
+            next_wallet_target
+        )
+    };
+
+    let risk_trigger = if let Some(owner_pct) = owner_holding_pct.filter(|pct| *pct >= 8.0) {
+        format!(
+            "Raise risk immediately if the deployer or early owner wallet starts distributing more supply from its current {:.1}% visible position.",
+            owner_pct
+        )
+    } else if let Some(top10_pct) = top10_concentration.filter(|pct| *pct >= 75.0) {
+        format!(
+            "Raise risk if top-holder concentration pushes further above {:.1}% or if whales start exiting while breadth stays thin.",
+            top10_pct
+        )
+    } else if has_operator_pattern {
+        "Raise risk if repeated-wallet overlap spreads to more launches or seller-to-new-builder links keep increasing.".to_string()
+    } else {
+        "Raise risk if wallet breadth stalls, buy pressure fades, or concentration starts climbing again.".to_string()
+    };
+
+    let deep_research_trigger = if deep_research.report_cached {
+        "Deep research is already attached. Rerun it only if source quality degrades or the launch structure changes materially.".to_string()
+    } else if deep_research.auto_requested {
+        format!(
+            "Deep research has already been queued because activity cleared the {} total transaction threshold.",
+            deep_research.auto_threshold_tx_count
+        )
+    } else if i64::from(total_tx) >= deep_research.auto_threshold_tx_count {
+        format!(
+            "Deep research should be opened now because activity has already cleared the {} transaction auto threshold.",
+            deep_research.auto_threshold_tx_count
+        )
+    } else {
+        format!(
+            "Deep research auto-starts once total transactions reach {}. It can still be opened manually below that threshold.",
+            deep_research.auto_threshold_tx_count
+        )
+    };
+
+    let invalidation_trigger = if analysis.score.is_none() {
+        format!(
+            "Invalidate the early read if the token still cannot clear {} total transactions, or if sell pressure takes control before real breadth arrives.",
+            deep_research.ai_score_gate_tx_count
+        )
+    } else if buy_share < 50.0 {
+        "Invalidate the current read if sell pressure keeps leading and no new organic wallets arrive.".to_string()
+    } else {
+        "Invalidate the current read if buy pressure fades, breadth stops expanding, or a new builder/operator warning appears.".to_string()
+    };
+
+    InvestigationTripwires {
+        headline: "What would make MIA change its mind?".to_string(),
+        watching_for: clean_sentence(&watching_for, "MIA is monitoring the next meaningful change."),
+        upgrade_trigger: clean_sentence(&upgrade_trigger, "Upgrade requires stronger proof."),
+        risk_trigger: clean_sentence(&risk_trigger, "Risk rises if structure worsens."),
+        deep_research_trigger: clean_sentence(
+            &deep_research_trigger,
+            "Deep research is triggered when evidence depth is needed.",
+        ),
+        invalidation_trigger: clean_sentence(
+            &invalidation_trigger,
+            "Invalidate the read when the thesis breaks.",
+        ),
+    }
 }
 
 fn build_analysis_evidence_payload(
@@ -1139,6 +1284,19 @@ mod tests {
         }
     }
 
+    fn sample_deep_research_state() -> InvestigationDeepResearchState {
+        InvestigationDeepResearchState {
+            report_cached: false,
+            report_generated_at: None,
+            auto_threshold_met: false,
+            auto_threshold_tx_count: 500,
+            auto_requested: false,
+            ai_score_enabled: true,
+            ai_score_gate_tx_count: 50,
+            score_enriched: false,
+        }
+    }
+
     #[test]
     fn extracts_json_payload_from_wrapped_text() {
         let payload: AnalysisPayload = parse_json_payload(
@@ -1222,5 +1380,70 @@ mod tests {
             payload["wallets"]["cluster_signals"]["probable_cluster_wallets"].as_i64(),
             Some(2)
         );
+    }
+
+    #[test]
+    fn tripwires_explain_upgrade_and_risk_conditions() {
+        let tripwires = build_investigation_tripwires(
+            &sample_internal(),
+            &sample_contract_intelligence(),
+            &InvestigationAnalysis {
+                provider: "gpt-5.4".to_string(),
+                score: Some(61),
+                label: Some("WATCH".to_string()),
+                verdict: "WATCH".to_string(),
+                conviction: "medium".to_string(),
+                confidence: "medium".to_string(),
+                executive_summary: "summary".to_string(),
+                primary_reason: "reason".to_string(),
+                primary_risk: "risk".to_string(),
+                supporting_points: vec![],
+                thesis: vec![],
+                risks: vec![],
+                next_actions: vec![],
+                raw: None,
+            },
+            &sample_deep_research_state(),
+        );
+
+        assert_eq!(tripwires.headline, "What would make MIA change its mind?");
+        assert!(tripwires.watching_for.contains("participation") || tripwires.watching_for.contains("wallet breadth"));
+        assert!(tripwires.upgrade_trigger.contains("Upgrade"));
+        assert!(tripwires.risk_trigger.contains("Raise risk"));
+        assert!(tripwires.deep_research_trigger.contains("Deep research"));
+        assert!(tripwires.invalidation_trigger.contains("Invalidate"));
+    }
+
+    #[test]
+    fn tripwires_explain_score_gate_when_ai_score_is_locked() {
+        let mut deep_research = sample_deep_research_state();
+        deep_research.ai_score_enabled = false;
+        let analysis = InvestigationAnalysis {
+            provider: "budget-gated-heuristic".to_string(),
+            score: None,
+            label: None,
+            verdict: "WATCH".to_string(),
+            conviction: "medium".to_string(),
+            confidence: "medium".to_string(),
+            executive_summary: "summary".to_string(),
+            primary_reason: "reason".to_string(),
+            primary_risk: "risk".to_string(),
+            supporting_points: vec![],
+            thesis: vec![],
+            risks: vec![],
+            next_actions: vec![],
+            raw: None,
+        };
+
+        let tripwires = build_investigation_tripwires(
+            &sample_internal(),
+            &sample_contract_intelligence(),
+            &analysis,
+            &deep_research,
+        );
+
+        assert!(tripwires.watching_for.contains("50"));
+        assert!(tripwires.upgrade_trigger.contains("50"));
+        assert!(tripwires.invalidation_trigger.contains("50"));
     }
 }

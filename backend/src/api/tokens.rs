@@ -60,6 +60,7 @@ pub struct TokenSummary {
     pub risk_category: Option<String>,
     pub ai_scored: bool,
     pub deep_researched: bool,
+    pub watching_for: String,
     pub window_hours: Option<i64>,
     pub window_volume_bnb: Option<f64>,
     pub window_buy_count: Option<i64>,
@@ -127,6 +128,37 @@ fn risk_category_from_score(score: i16) -> &'static str {
     } else {
         "high"
     }
+}
+
+fn build_token_watching_for(
+    total_tx: i32,
+    ai_scored: bool,
+    deep_researched: bool,
+    ai_score_gate: i32,
+    deep_research_threshold: i64,
+) -> String {
+    if !ai_scored {
+        return format!(
+            "Watching for more than {} total transactions so MIA can unlock a live AI score.",
+            ai_score_gate
+        );
+    }
+
+    if deep_researched {
+        return "Watching for live holder, builder, and flow changes after deep research.".to_string();
+    }
+
+    if i64::from(total_tx) >= deep_research_threshold {
+        return format!(
+            "Watching for the deep research report after activity cleared the {} transaction threshold.",
+            deep_research_threshold
+        );
+    }
+
+    format!(
+        "Watching for {} total transactions so deep research can auto-start.",
+        deep_research_threshold
+    )
 }
 
 // ─── Handlers ─────────────────────────────────────────────────────────────────
@@ -336,6 +368,13 @@ pub async fn list_tokens(
                     risk_category,
                     ai_scored,
                     deep_researched,
+                    watching_for: build_token_watching_for(
+                        total_tx,
+                        ai_scored,
+                        deep_researched,
+                        ai_score_gate,
+                        state.config.auto_deep_research_tx_threshold,
+                    ),
                     window_hours: (sort_mode == "activity").then_some(window_hours),
                     window_volume_bnb,
                     window_buy_count,
@@ -591,5 +630,25 @@ mod tests {
     #[test]
     fn default_limit_is_twenty() {
         assert_eq!(default_limit(), 20);
+    }
+
+    #[test]
+    fn token_watching_for_explains_score_unlock_before_ai_gate() {
+        let watching_for = build_token_watching_for(18, false, false, 50, 500);
+        assert!(watching_for.contains("50"));
+        assert!(watching_for.contains("AI score"));
+    }
+
+    #[test]
+    fn token_watching_for_explains_deep_research_after_score_unlock() {
+        let watching_for = build_token_watching_for(120, true, false, 50, 500);
+        assert!(watching_for.contains("500"));
+        assert!(watching_for.contains("deep research"));
+    }
+
+    #[test]
+    fn token_watching_for_mentions_post_research_monitoring() {
+        let watching_for = build_token_watching_for(800, true, true, 50, 500);
+        assert!(watching_for.contains("after deep research"));
     }
 }
