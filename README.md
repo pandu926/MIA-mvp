@@ -18,6 +18,7 @@ This open-source MVP focuses on one problem: fast launches create too much fragm
 - Backend: Rust, Axum, Tokio, SQLx
 - Frontend: Next.js 15, React 19, TypeScript
 - Data: PostgreSQL, Redis
+- ML / pattern engine: Python scripts for training, inference, labeling, and remote pattern-engine workflows
 - Chain: BNB Chain / Four.Meme
 - Enrichment: Moralis + optional Deep Research providers
 - LLM: any OpenAI-compatible endpoint
@@ -90,6 +91,14 @@ Frontend production build:
 make build-frontend
 ```
 
+## Technical lanes included
+
+This public MVP repo includes more than the web app:
+
+- `ml/` — model training, inference, promotion, and pattern-engine scripts
+- `tools/` — small operator utilities such as the x402 human client
+- `backend/scripts/` — backend-side helper scripts used by premium research flows
+
 ## Main surfaces
 
 - `/app` — live discovery surface
@@ -116,6 +125,7 @@ It is a controlled operating surface, not automation theater.
 This public repository is intentionally kept lean:
 
 - runnable app code only
+- ML and tooling source code that supports the MVP
 - no private wallets
 - no internal planning docs
 - no local agent configs
