@@ -50,6 +50,15 @@ docker compose up -d --build
 http://localhost:3313
 ```
 
+If those ports are already in use on your machine, override them in `.env`:
+
+```env
+FRONTEND_PORT=4313
+BACKEND_PORT=48080
+APP_BASE_URL=http://localhost:4313
+APP_ALLOWED_ORIGINS=http://localhost:4313,http://127.0.0.1:4313
+```
+
 ## Required environment variables
 
 Minimum required for the MVP to function well:
